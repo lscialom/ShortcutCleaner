@@ -85,8 +85,10 @@ HRESULT ResolveShortcut(HWND hwnd, LPWSTR lpszLinkFile, LPSTR lpszPath, int iPat
 
 void ProcessFile(wchar_t* sPath)
 {
+	static std::wregex ext(L".*\\.lnk");
+
 	//Check file extension
-	if (!std::regex_match(sPath, std::wregex(L".*\\.lnk")))
+	if (!std::regex_match(sPath, ext))
 		return;
 
 	char buffer[MAX_PATH];
