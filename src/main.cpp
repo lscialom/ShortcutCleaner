@@ -97,53 +97,40 @@ void ProcessFile(wchar_t* sPath)
 	}
 }
 
-bool ProcessPath(wchar_t* path)
+void ProcessDirectory(wchar_t* path)
 {
-	if (!(GetFileAttributesW(path) & FILE_ATTRIBUTE_DIRECTORY))
-	{
-		ProcessFile(path);
-		return true;
-	}
-
 	WIN32_FIND_DATAW fdFile;
 	HANDLE hFind = NULL;
 
 	wchar_t sPath[MAX_PATH];
 
-	//Specify a file mask. *.* = We want everything! 
-	swprintf(sPath, MAX_PATH, L"%s\\*.*", path);
+	swprintf(sPath, MAX_PATH, L"%s\\*", path);
 
 	if ((hFind = FindFirstFileW(sPath, &fdFile)) == INVALID_HANDLE_VALUE)
 	{
 		wprintf(L"Path not found: [%s]\n", path);
-		return false;
+		return;
 	}
 
-	do
-	{
-		//Find first file will always return "."
-		//    and ".." as the first two directories. 
-		if (wcscmp(fdFile.cFileName, L".") != 0
-			&& wcscmp(fdFile.cFileName, L"..") != 0)
-		{
-			swprintf(sPath, MAX_PATH, L"%s\\%s", path, fdFile.cFileName);
+	//Find will always return "." and ".." as the first two directories. 
+	FindNextFileW(hFind, &fdFile);
 
-			if (fdFile.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-			{
-				wprintf(L"Directory: %s\n", sPath);
-				ProcessPath(sPath);
-			}
-			else
-				ProcessFile(sPath);
+	while (FindNextFileW(hFind, &fdFile))
+	{
+		swprintf(sPath, MAX_PATH, L"%s\\%s", path, fdFile.cFileName);
+
+		if (fdFile.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+		{
+			wprintf(L"Directory: %s\n", sPath);
+			ProcessDirectory(sPath);
 		}
-	} while (FindNextFileW(hFind, &fdFile));
+		else
+			ProcessFile(sPath);
+	} 
 
 	FindClose(hFind);
-
-	return true;
 }
 
-//TODO Manage argv being a folder ?
 int wmain(int argc, wchar_t* argv[], wchar_t *envp[])
 {
 	if (argc > 1)
@@ -151,7 +138,14 @@ int wmain(int argc, wchar_t* argv[], wchar_t *envp[])
 		CoInitialize(0);
 
 		for(int i = 1; i<argc; ++i)
-			ProcessPath(argv[i]);
+		{
+			if (GetFileAttributesW(argv[i]) & FILE_ATTRIBUTE_DIRECTORY)
+				ProcessDirectory(argv[i]);
+			else
+				ProcessFile(argv[i]);
+		}
+
+		CoUninitialize();
 	}
 
 	system("pause");
