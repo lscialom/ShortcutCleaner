@@ -3,6 +3,8 @@
 #include <cstring>
 #include <string>
 
+#include <regex>
+
 #include "windows.h"
 #include "shobjidl.h"
 #include "shlguid.h"
@@ -80,6 +82,10 @@ HRESULT ResolveShortcut(HWND hwnd, LPWSTR lpszLinkFile, LPSTR lpszPath, int iPat
 
 void ProcessFile(wchar_t* sPath)
 {
+	//Check file extension
+	if (!std::regex_match(sPath, std::wregex(L".*\\.lnk")))
+		return;
+
 	wprintf(L"File: %s\n", sPath);
 
 	char buffer[MAX_PATH];
@@ -92,7 +98,7 @@ void ProcessFile(wchar_t* sPath)
 			printf("%s not found.\n", buffer);
 			wprintf(L"Deleting: %s\n", sPath);
 
-			DeleteFileW(sPath);
+			DeleteFileW(sPath);//TODO Ask before
 		}
 	}
 }
