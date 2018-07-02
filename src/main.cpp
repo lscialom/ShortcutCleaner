@@ -10,7 +10,7 @@
 
 #include <shlwapi.h>
 
-HRESULT ResolveIt(HWND hwnd, LPWSTR lpszLinkFile, LPSTR lpszPath, int iPathBufferSize)
+HRESULT ResolveShortcut(HWND hwnd, LPWSTR lpszLinkFile, LPSTR lpszPath, int iPathBufferSize)
 {
 	HRESULT hres;
 	IShellLink* psl;
@@ -78,6 +78,71 @@ HRESULT ResolveIt(HWND hwnd, LPWSTR lpszLinkFile, LPSTR lpszPath, int iPathBuffe
 	return hres;
 }
 
+void ProcessFile(wchar_t* sPath)
+{
+	wprintf(L"File: %s\n", sPath);
+
+	char buffer[MAX_PATH];
+	ResolveShortcut(nullptr, sPath, buffer, MAX_PATH);
+
+	if (buffer && buffer[0] != '\0')
+	{
+		if (!PathFileExistsA(buffer))
+		{
+			printf("%s not found.\n", buffer);
+			wprintf(L"Deleting: %s\n", sPath);
+
+			DeleteFileW(sPath);
+		}
+	}
+}
+
+bool ProcessPath(wchar_t* path)
+{
+	if (!(GetFileAttributesW(path) & FILE_ATTRIBUTE_DIRECTORY))
+	{
+		ProcessFile(path);
+		return true;
+	}
+
+	WIN32_FIND_DATAW fdFile;
+	HANDLE hFind = NULL;
+
+	wchar_t sPath[MAX_PATH];
+
+	//Specify a file mask. *.* = We want everything! 
+	swprintf(sPath, MAX_PATH, L"%s\\*.*", path);
+
+	if ((hFind = FindFirstFileW(sPath, &fdFile)) == INVALID_HANDLE_VALUE)
+	{
+		wprintf(L"Path not found: [%s]\n", path);
+		return false;
+	}
+
+	do
+	{
+		//Find first file will always return "."
+		//    and ".." as the first two directories. 
+		if (wcscmp(fdFile.cFileName, L".") != 0
+			&& wcscmp(fdFile.cFileName, L"..") != 0)
+		{
+			swprintf(sPath, MAX_PATH, L"%s\\%s", path, fdFile.cFileName);
+
+			if (fdFile.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+			{
+				wprintf(L"Directory: %s\n", sPath);
+				ProcessPath(sPath);
+			}
+			else
+				ProcessFile(sPath);
+		}
+	} while (FindNextFileW(hFind, &fdFile));
+
+	FindClose(hFind);
+
+	return true;
+}
+
 //TODO Manage argv being a folder ?
 int wmain(int argc, wchar_t* argv[], wchar_t *envp[])
 {
@@ -86,24 +151,7 @@ int wmain(int argc, wchar_t* argv[], wchar_t *envp[])
 		CoInitialize(0);
 
 		for(int i = 1; i<argc; ++i)
-		{
-			//Ignore everything but lnk files
-			//Not necessary
-			//if(std::wstring(wcsrchr(argv[i], '.')) != L".lnk")
-			//	continue;
-
-			char buffer[MAX_PATH];
-			ResolveIt(nullptr, argv[i], buffer, MAX_PATH);
-
-			if(buffer && buffer[0] != '\0')
-			{
-				if(!PathFileExistsA(buffer))
-				{
-					wprintf(L"Deleting: %s\n", argv[i]);
-					DeleteFileW(argv[i]);
-				}
-			}
-		}
+			ProcessPath(argv[i]);
 	}
 
 	system("pause");
