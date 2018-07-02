@@ -159,7 +159,12 @@ int wmain(int argc, wchar_t* argv[], wchar_t *envp[])
 		if (buffer == 'y')
 		{
 			for (size_t i = 0; i < filesToDelete.size(); ++i)
+			{
+				wprintf(L"Deleting %s\n", filesToDelete[i].c_str());
 				DeleteFileW(filesToDelete[i].c_str());
+			}
+
+			printf("Done.\n");
 		}
 		else
 			printf("Aborted.\n");
