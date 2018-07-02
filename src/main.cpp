@@ -4,6 +4,7 @@
 #include <string>
 
 #include <regex>
+#include <iostream>
 
 #include "windows.h"
 #include "shobjidl.h"
@@ -11,6 +12,8 @@
 #include "strsafe.h"
 
 #include <shlwapi.h>
+
+static std::vector<std::wstring> filesToDelete;
 
 HRESULT ResolveShortcut(HWND hwnd, LPWSTR lpszLinkFile, LPSTR lpszPath, int iPathBufferSize)
 {
@@ -86,8 +89,6 @@ void ProcessFile(wchar_t* sPath)
 	if (!std::regex_match(sPath, std::wregex(L".*\\.lnk")))
 		return;
 
-	wprintf(L"File: %s\n", sPath);
-
 	char buffer[MAX_PATH];
 	ResolveShortcut(nullptr, sPath, buffer, MAX_PATH);
 
@@ -95,10 +96,8 @@ void ProcessFile(wchar_t* sPath)
 	{
 		if (!PathFileExistsA(buffer))
 		{
-			printf("%s not found.\n", buffer);
-			wprintf(L"Deleting: %s\n", sPath);
-
-			DeleteFileW(sPath);//TODO Ask before
+			wprintf(L"%s\n", sPath);
+			filesToDelete.push_back(sPath);
 		}
 	}
 }
@@ -126,10 +125,7 @@ void ProcessDirectory(wchar_t* path)
 		swprintf(sPath, MAX_PATH, L"%s\\%s", path, fdFile.cFileName);
 
 		if (fdFile.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-		{
-			wprintf(L"Directory: %s\n", sPath);
 			ProcessDirectory(sPath);
-		}
 		else
 			ProcessFile(sPath);
 	} 
@@ -141,6 +137,8 @@ int wmain(int argc, wchar_t* argv[], wchar_t *envp[])
 {
 	if (argc > 1)
 	{
+		printf("The following files will be deleted:\n");
+
 		CoInitialize(0);
 
 		for(int i = 1; i<argc; ++i)
@@ -152,6 +150,19 @@ int wmain(int argc, wchar_t* argv[], wchar_t *envp[])
 		}
 
 		CoUninitialize();
+
+		printf("Proceed ? (y/n)");
+
+		char buffer = '\0';
+		std::cin >> buffer;
+
+		if (buffer == 'y')
+		{
+			for (size_t i = 0; i < filesToDelete.size(); ++i)
+				DeleteFileW(filesToDelete[i].c_str());
+		}
+		else
+			printf("Aborted.\n");
 	}
 
 	system("pause");
